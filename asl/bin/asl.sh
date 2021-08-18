@@ -4,7 +4,7 @@
 
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
 ROOTFS_PARTITIONS="/dev /dev/pts /proc"
-ASL_VERSION="Release-1.0"
+ASL_VERSION="Dex-2.3"
 TOOLKIT="/data/asl/bin"
 HOME="/data/asl/rootfs"
 
@@ -20,7 +20,7 @@ function INSTALL_LINUX() {
         if [ ! -d "$ROOTFS" ]; then
             mkdir -p "$ROOTFS"
             ASL_PRINT "正在释放容器，请稍候..."
-            tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
+            $TOOLKIT/tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
             ASL_PRINT "正在优化系统设置..."
             rm -rf "$ROOTFS/etc/mtab"
             cp "/proc/mounts" "$ROOTFS/etc/mtab"
