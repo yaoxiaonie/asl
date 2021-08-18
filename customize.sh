@@ -9,7 +9,6 @@ mkdir -p /data/asl/rootfs
 
 ui_print "- 配置工作环境..."
 mv $MODPATH/asl/bin/* /data/asl/bin/
-/data/asl/bin/busybox --install -s "/data/asl/bin"
 chmod -R 0755 /data/asl/bin/
 ln -s /data/asl/bin/asl.sh /system/xbin/asl
 

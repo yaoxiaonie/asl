@@ -20,7 +20,7 @@ function INSTALL_LINUX() {
         if [ ! -d "$ROOTFS" ]; then
             mkdir -p "$ROOTFS"
             ASL_PRINT "正在释放容器，请稍候..."
-            $TOOLKIT/tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
+            $TOOLKIT/busybox tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
             ASL_PRINT "正在优化系统设置..."
             rm -rf "$ROOTFS/etc/mtab"
             cp "/proc/mounts" "$ROOTFS/etc/mtab"
