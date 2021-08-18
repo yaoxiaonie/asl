@@ -199,7 +199,7 @@ function EXEC_ROOTFS() {
     echo
     unset TMP TEMP TMPDIR LD_PRELOAD LD_DEBUG
     PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games:/usr/local/sbin:/sbin
-    $TOOLKIT/bin/unshare -R "$ROOTFS" bash -c "$*"
+    $TOOLKIT/unshare -R "$ROOTFS" bash -c "$*"
 }
 
 function USAGE() {
