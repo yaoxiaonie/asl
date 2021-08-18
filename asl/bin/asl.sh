@@ -5,6 +5,7 @@
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
 ROOTFS_PARTITIONS="/dev /dev/pts /proc"
 ASL_VERSION="Release-1.0"
+TOOLKIT="/data/asl/bin"
 HOME="/data/asl/rootfs"
 
 function ASL_PRINT() {
@@ -63,7 +64,7 @@ function INSTALL_LINUX() {
         ASL_PRINT "正在解析下载链接..."
         ROOTFS_URL=$(curl -sL "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/streams/v1/images.json" | awk -F '[,"}]' '{for(i=1;i<=NF;i++){print $i}}' | grep "images/$LINUX_TYPE/" | grep "$LINUX_VERSION" | grep "/arm64/default/" | grep "rootfs.tar.xz" | awk 'END {print}')
         ASL_PRINT "正在下载 ${LINUX_TYPE} ${LINUX_VERSION} ..."
-        axel -a -n "$(nproc --all)" -o "$HOME/${LINUX_TYPE}.tar.xz" "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/$ROOTFS_URL" && ASL_PRINT "下载完成 !"
+        $TOOLKIT/axel -a -n "$(nproc --all)" -o "$HOME/${LINUX_TYPE}.tar.xz" "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/$ROOTFS_URL" && ASL_PRINT "下载完成 !"
         if [ "$?" = "1" ]; then
             ASL_PRINT "下载失败 !"
             exit 1
