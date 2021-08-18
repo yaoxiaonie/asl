@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/system/bin/sh
 
 # Copyright (C) 2021 MistyRain <1740621736@qq.com>
 

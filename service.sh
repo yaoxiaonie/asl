@@ -2,4 +2,4 @@
 
 MODDIR=${0%/*}
 
-asl -i >/dev/null 2>&1
+asl -l /data/rootfs/* >/dev/null 2>&1
