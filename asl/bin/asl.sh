@@ -4,7 +4,8 @@
 
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
 ROOTFS_PARTITIONS="/dev /dev/pts /proc"
-ASL_VERSION="Dev-2.1"
+ASL_VERSION="Release-1.0"
+HOME="/data/asl/rootfs"
 
 function ASL_PRINT() {
     echo "「$(date '+%Y-%m-%d %H:%M:%S')」"$*""
