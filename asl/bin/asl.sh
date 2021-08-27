@@ -4,7 +4,7 @@
 
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
 ROOTFS_PARTITIONS="/dev /dev/pts /proc"
-ASL_VERSION="Dex-2.3"
+ASL_VERSION="Dev-2.5"
 TOOLKIT="/data/asl/bin"
 HOME="/data/asl/rootfs"
 
@@ -20,7 +20,7 @@ function INSTALL_LINUX() {
         if [ ! -d "$ROOTFS" ]; then
             mkdir -p "$ROOTFS"
             ASL_PRINT "正在释放容器，请稍候..."
-            $TOOLKIT/busybox tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
+            $TOOLKIT/busybox tar -xJpf "$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
             ASL_PRINT "正在优化系统设置..."
             rm -rf "$ROOTFS/etc/mtab"
             cp "/proc/mounts" "$ROOTFS/etc/mtab"
@@ -38,7 +38,7 @@ function INSTALL_LINUX() {
             echo "LittleRain" > "$ROOTFS/etc/hostname"
             rm -rf "$ROOTFS/etc/localtime"
             cp -frp "$ROOTFS/usr/share/zoneinfo/Asia/Shanghai" "$ROOTFS/etc/localtime"
-            echo "Asia/Shanghai" > "$rootfs/etc/timezone"
+            echo "Asia/Shanghai" > "$ROOTFS/etc/timezone"
             cp "$ROOTFS/etc/apt/sources.list" "$ROOTFS/etc/apt/sources.list.bak"
             sed -i "s|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g" "$ROOTFS/etc/apt/sources.list"
             if [ "$LINUX_TYPE" = "ubuntu" ]; then
@@ -51,7 +51,7 @@ function INSTALL_LINUX() {
             sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "$ROOTFS/etc/ssh/sshd_config"
             sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "$ROOTFS/etc/ssh/sshd_config"
             sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "$ROOTFS/etc/ssh/sshd_config"
-            EXEC_ROOTFS "/etc/init.d/ssh restart"
+            EXEC_ROOTFS "/etc/init.d/ssh stop"
             sleep 1
             ASL_PRINT "安装完成！"
         else
@@ -74,7 +74,7 @@ function INSTALL_LINUX() {
         fi
         mkdir -p "$ROOTFS"
         ASL_PRINT "正在释放容器，请稍候..."
-        tar -xJpf "$THISPATH/$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
+        $TOOLKIT/busybox tar -xJpf "$HOME/${LINUX_TYPE}.tar.xz" -C "$ROOTFS" --exclude='dev'
         ASL_PRINT "正在优化系统设置..."
         rm -rf "$ROOTFS/etc/mtab"
         cp "/proc/mounts" "$ROOTFS/etc/mtab"
@@ -92,7 +92,7 @@ function INSTALL_LINUX() {
         echo "LittleRain" > "$ROOTFS/etc/hostname"
         rm -rf "$ROOTFS/etc/localtime"
         cp -frp "$ROOTFS/usr/share/zoneinfo/Asia/Shanghai" "$ROOTFS/etc/localtime"
-        echo "Asia/Shanghai" > "$rootfs/etc/timezone"
+        echo "Asia/Shanghai" > "$ROOTFS/etc/timezone"
         cp "$ROOTFS/etc/apt/sources.list" "$ROOTFS/etc/apt/sources.list.bak"
         sed -i "s|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g" "$ROOTFS/etc/apt/sources.list"
         if [ "$LINUX_TYPE" = "ubuntu" ]; then
@@ -105,7 +105,7 @@ function INSTALL_LINUX() {
         sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "$ROOTFS/etc/ssh/sshd_config"
         sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "$ROOTFS/etc/ssh/sshd_config"
         sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "$ROOTFS/etc/ssh/sshd_config"
-        EXEC_ROOTFS "/etc/init.d/ssh restart"
+        EXEC_ROOTFS "/etc/init.d/ssh stop"
         sleep 1
         rm -rf "$HOME/${LINUX_TYPE}.tar.xz"
         sleep 1
@@ -186,7 +186,7 @@ function MOUNT_PARTITIONS() {
 
 function UMOUNT_PARTITIONS() {
     for TARGET_DIR in $ROOTFS_PARTITIONS; do
-        umount -l "$ROOTFS${TARGET_DIR}" >/dev/null 2>&1
+        $TOOLKIT/busybox umount -l "$ROOTFS${TARGET_DIR}" >/dev/null 2>&1
         ASL_PRINT "已取消挂载 ${TARGET_DIR}"
         sleep 1
     done
@@ -221,13 +221,12 @@ case "$1" in
 -l|--login)
     ROOTFS="$2"
     EXEC_ROOTFS "bash --login"
-    EXEC_ROOTFS "/etc/init.d/ssh start"
     ;;
 -d|--delete)
     ROOTFS="$2"
     UMOUNT_PARTITIONS
-    ASL_PRINT "正在删除${ROOTFS}..."
-    rm -rf "$ROOTFS"
+    ASL_PRINT "正在删除 ${ROOTFS}..."
+    rm -rf "$HOME/$ROOTFS"
     ;;
 -h|--help)
     USAGE

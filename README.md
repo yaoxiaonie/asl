@@ -1,5 +1,6 @@
-## ASL
-Android subsystem for Linux（安卓子系统）
+## 关于ASL
+### Android subsystem for Linux（安卓子系统）
+目前只支持基于debian发行版的Linux安装，arch系Linux待支持...
 
 ## 如何安装rootfs容器？
 1. 打开任意终端软件
