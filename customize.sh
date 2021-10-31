@@ -12,6 +12,7 @@ on_install() {
         unzip -o "$ZIPFILE" 'asl/*' -d "/data" >&2
         chmod -R 0755 "$ASL/bin"
         ln -s "$ASL/bin/asl.sh" "/system/xbin/asl"
+        touch "$ASL/rootfs.config"
     fi
 }
 
