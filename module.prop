@@ -1,6 +1,6 @@
 id=asl
 name=Android subsystem for Linux
-version=20210827
+version=20220206
 versionCode=1
 author=yaoxiaonie
 description=利用Magisk来实现开机自动部署子系统，打开ssh通道为目的。（默认端口4022，root用户密码为root）
