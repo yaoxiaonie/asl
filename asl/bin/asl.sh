@@ -3,7 +3,7 @@
 # Copyright (C) 2021 MistyRain <1740621736@qq.com>
 
 function ASL_PRINT() {
-    echo "「$(date '+%Y-%m-%d %H:%M:%S')」"$*""
+    echo "「$(date '+%Y-%m-%d %H:%M:%S')」"$@""
 }
 
 function INSTALL_LINUX() {
@@ -11,107 +11,74 @@ function INSTALL_LINUX() {
         if [ -f "$1" ]; then
             TARGET_LINUX="$1"
             LINUX_NAME="$2"
-            ROOTFS="$HOME/$LINUX_NAME"
+            ROOTFS="$ASL_HOME/$LINUX_NAME"
             if [ ! -d "$ROOTFS" ]; then
                 mkdir -p "$ROOTFS"
                 ASL_PRINT "正在释放容器，请稍候..."
-                $TOOLKIT/busybox tar -xJpf "$TARGET_LINUX" -C "$ROOTFS" --exclude='dev'
+                if [ "$ASL_MODE" = "unshare" ]; then
+                    pv "$TARGET_LINUX" | tar -xJpf -C "$ROOTFS" --exclude='dev'
+                else
+                    pv "$TARGET_LINUX" | $PROOT --link2symlink tar -xJp  -C "$ROOTFS" --exclude='dev'
+                fi
+                if [ "$?" = "1" ]; then
+                    ASL_PRINT "释放失败，可能文件已损坏！"
+                    exit 1
+                fi
                 ASL_PRINT "正在优化系统设置..."
-                rm -rf "$ROOTFS/etc/mtab"
-                cp "/proc/mounts" "$ROOTFS/etc/mtab"
-                if ! $(grep -q "^127.0.0.1" "$ROOTFS/etc/hosts"); then
-                    echo '127.0.0.1 localhost' >>"$ROOTFS/etc/hosts"
-                    sed -i 's/LXC_NAME/LittleRain/g' "$ROOTFS/etc/hosts"
+                if [[ "$(awk -F= '$1 == "ID_LIKE" {print $2}' $ROOTFS/etc/os-release)" = "arch" ]]; then
+                    cat $ASL_TOOLKIT/deploy/arch.sh >$ROOTFS/root/.profile
+                    EXEC_ROOTFS "bash --login"
+                else
+                    cat $ASL_TOOLKIT/deploy/debian.sh >$ROOTFS/root/.profile
+                    EXEC_ROOTFS "bash --login"
                 fi
-                rm -rf "$ROOTFS/etc/resolv.conf"
-                echo "nameserver 8.8.8.8" >>"$ROOTFS/etc/resolv.conf"
-                if [ -f "$ROOTFS/etc/nsswitch.conf" ]; then
-                    sed -i 's/systemd//g' "$ROOTFS/etc/nsswitch.conf"
-                fi
-                echo "inet:x:3003:root" >>$ROOTFS/etc/group
-                echo "net_raw:x:3004:root" $ROOTFS/etc/group
-                echo "LittleRain" >"$ROOTFS/etc/hostname"
-                rm -rf "$ROOTFS/etc/localtime"
-                cp -frp "$ROOTFS/usr/share/zoneinfo/Asia/Shanghai" "$ROOTFS/etc/localtime"
-                echo "Asia/Shanghai" >"$ROOTFS/etc/timezone"
-                cp "$ROOTFS/etc/apt/sources.list" "$ROOTFS/etc/apt/sources.list.bak"
-                sed -i "s|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g" "$ROOTFS/etc/apt/sources.list"
-                LINUX_TYPE=$(cat "$ROOTFS/etc/issue" | awk '{print $1}')
-                if [[ "$LINUX_TYPE" = "Ubuntu" || "$LINUX_TYPE" = "Debian" ]]; then
-                    echo "Debug::NoDropPrivs true;" >"$ROOTFS/etc/apt/apt.conf.d/00no-drop-privs"
-                    touch "$ROOTFS/root/.hushlogin"
-                fi
-                EXEC_ROOTFS "echo "root:root" | chpasswd"
-                EXEC_ROOTFS "apt update -y && apt upgrade -y && apt install openssh-server -y"
-                sed -i -E 's/#?Port .*/Port 4022/g' "$ROOTFS/etc/ssh/sshd_config"
-                sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "$ROOTFS/etc/ssh/sshd_config"
-                sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "$ROOTFS/etc/ssh/sshd_config"
-                sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "$ROOTFS/etc/ssh/sshd_config"
-                EXEC_ROOTFS "/etc/init.d/ssh stop"
-                sleep 1
-                ASL_PRINT "安装完成！"
             else
                 ASL_PRINT "已存在${LINUX_NAME}，无法再进行安装！"
+                exit 1
             fi
         else
             ASL_PRINT "找不到文件！"
+            exit 1
         fi
     else
         LINUX_TYPE="$1"
         LINUX_VERSION="$2"
-        ROOTFS="$HOME/${LINUX_TYPE}_${LINUX_VERSION}"
+        ROOTFS="$ASL_HOME/${LINUX_TYPE}"
         if [ -d "$ROOTFS" ]; then
             ASL_PRINT "容器已存在，请删除容器后重试！"
+            exit 1
         fi
         ASL_PRINT "正在解析下载链接..."
         ROOTFS_URL=$(curl -sL "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/streams/v1/images.json" | awk -F '[,"}]' '{for(i=1;i<=NF;i++){print $i}}' | grep "images/$LINUX_TYPE/" | grep "$LINUX_VERSION" | grep "/arm64/default/" | grep "rootfs.tar.xz" | awk 'END {print}')
-        ASL_PRINT "正在下载 ${LINUX_TYPE} ${LINUX_VERSION} ..."
-        $TOOLKIT/axel -a -n "$(nproc --all)" -o "$HOME/${LINUX_TYPE}_${LINUX_VERSION}.tar.xz" "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/$ROOTFS_URL" && ASL_PRINT "下载完成 !"
+        ASL_PRINT "正在下载${LINUX_TYPE} ${LINUX_VERSION} ..."
+        axel -a -n "$(nproc --all)" -o "$ASL_TMP/rootfs.tar.xz" "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/$ROOTFS_URL" && ASL_PRINT "下载完成 !"
         if [ "$?" = "1" ]; then
             ASL_PRINT "下载失败 !"
             exit 1
-        elif [ ! -f "$HOME/${LINUX_TYPE}_${LINUX_VERSION}.tar.xz" ]; then
+        elif [ ! -f "$ASL_TMP/rootfs.tar.xz" ]; then
             ASL_PRINT "找不到下载的文件 !"
             exit 1
         fi
         mkdir -p "$ROOTFS"
         ASL_PRINT "正在释放容器，请稍候..."
-        $TOOLKIT/busybox tar -xJpf "$HOME/${LINUX_TYPE}_${LINUX_VERSION}.tar.xz" -C "$ROOTFS" --exclude='dev'
+        if [ "$ASL_MODE" = "unshare" ]; then
+            pv "$ASL_TMP/rootfs.tar.xz" | tar -xJp -C "$ROOTFS" --exclude='dev'
+        else
+            pv "$ASL_TMP/rootfs.tar.xz" | $PROOT --link2symlink tar -xJp -C "$ROOTFS" --exclude='dev'
+        fi
+        if [ "$?" = "1" ]; then
+            ASL_PRINT "释放失败，可能文件已损坏！"
+            exit 1
+        fi
+        rm -rf "$ASL_TMP/rootfs.tar.xz"
         ASL_PRINT "正在优化系统设置..."
-        rm -rf "$ROOTFS/etc/mtab"
-        cp "/proc/mounts" "$ROOTFS/etc/mtab"
-        if ! $(grep -q "^127.0.0.1" "$ROOTFS/etc/hosts"); then
-            echo '127.0.0.1 localhost' >>"$ROOTFS/etc/hosts"
-            sed -i 's/LXC_NAME/LittleRain/g' "$ROOTFS/etc/hosts"
+        if [[ "$(awk -F= '$1 == "ID_LIKE" {print $2}' $ROOTFS/etc/os-release)" = "arch" ]]; then
+            cat $ASL_TOOLKIT/deploy/arch.sh >$ROOTFS/root/.profile
+            EXEC_ROOTFS "bash --login"
+        else
+            cat $ASL_TOOLKIT/deploy/debian.sh >$ROOTFS/root/.profile
+            EXEC_ROOTFS "bash --login"
         fi
-        rm -rf "$ROOTFS/etc/resolv.conf"
-        echo "nameserver 8.8.8.8" >>"$ROOTFS/etc/resolv.conf"
-        if [ -f "$ROOTFS/etc/nsswitch.conf" ]; then
-            sed -i 's/systemd//g' "$ROOTFS/etc/nsswitch.conf"
-        fi
-        echo "inet:x:3003:root" >>$ROOTFS/etc/group
-        echo "net_raw:x:3004:root" $ROOTFS/etc/group
-        echo "LittleRain" >"$ROOTFS/etc/hostname"
-        rm -rf "$ROOTFS/etc/localtime"
-        cp -frp "$ROOTFS/usr/share/zoneinfo/Asia/Shanghai" "$ROOTFS/etc/localtime"
-        echo "Asia/Shanghai" >"$ROOTFS/etc/timezone"
-        cp "$ROOTFS/etc/apt/sources.list" "$ROOTFS/etc/apt/sources.list.bak"
-        sed -i "s|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g" "$ROOTFS/etc/apt/sources.list"
-        if [ "$LINUX_TYPE" = "ubuntu" ]; then
-            echo "Debug::NoDropPrivs true;" >"$ROOTFS/etc/apt/apt.conf.d/00no-drop-privs"
-            touch "$ROOTFS/root/.hushlogin"
-        fi
-        EXEC_ROOTFS "echo "root:root" | chpasswd"
-        EXEC_ROOTFS "apt update -y && apt upgrade -y && apt install openssh-server -y"
-        sed -i -E 's/#?Port .*/Port 4022/g' "$ROOTFS/etc/ssh/sshd_config"
-        sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "$ROOTFS/etc/ssh/sshd_config"
-        sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "$ROOTFS/etc/ssh/sshd_config"
-        sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "$ROOTFS/etc/ssh/sshd_config"
-        EXEC_ROOTFS "/etc/init.d/ssh stop"
-        sleep 1
-        rm -rf "$HOME/${LINUX_TYPE}.tar.xz"
-        sleep 1
-        echo "安装完成！"
     fi
 }
 
@@ -251,13 +218,18 @@ function UMOUNT_PARTITIONS() {
 }
 
 function EXEC_ROOTFS() {
-    ASL_PRINT "正在检查容器分区..."
-    CREATE_PARTITIONS
-    MOUNT_PARTITIONS
-    echo
-    unset TMP TEMP TMPDIR LD_PRELOAD LD_DEBUG
-    PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games:/usr/local/sbin:/sbin
-    $TOOLKIT/unshare -R "$ROOTFS" bash -c "$*"
+    if [ "$ASL_MODE" = "unshare" ]; then
+        ASL_PRINT "正在检查容器分区..."
+        CREATE_PARTITIONS
+        MOUNT_PARTITIONS
+        echo
+        unset TMP TEMP TMPDIR LD_PRELOAD LD_DEBUG
+        PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games:/usr/local/sbin:/sbin
+        $UNSHARE -R "$ROOTFS" bash -c "$@"
+    else
+        unset LD_PRELOAD
+        $PROOT --link2symlink -0 -r $ROOTFS -b /dev -b /proc -b $ROOTFS/root:/dev/shm -w /root /usr/bin/env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games TERM=$TERM LANG=zh_CN.UTF-8 bash -c "$@"
+    fi
 }
 
 function USAGE() {
@@ -273,14 +245,21 @@ function USAGE() {
 # 挂载分区设置
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
 ROOTFS_PARTITIONS="/dev /dev/pts /proc"
-# 工具包目录
-TOOLKIT="/data/asl/bin"
-# 容器储存目录
-HOME="/data/asl/rootfs"
-# ASL程序版本
-ASL_VERSION="Dev-2.6"
-# 挂载LOG返回设置
-LOG_RETURE="true"
+
+ASL_PROJECT=$(cd `dirname $0`;cd ..;pwd)
+if [ -f "$ASL_PROJECT/bin/asl.conf" ]; then
+    cat $ASL_PROJECT/bin/asl.conf | sed '/^#/d' | sed '/^$/d' | sed 's/: /=/g' | sed 's/^/export /g' >$ASL_PROJECT/bin/asl_opinion
+    source $ASL_PROJECT/bin/asl_opinion
+    rm -rf $ASL_PROJECT/bin/asl_opinion
+else
+    echo "找不到asl.conf，请确保本程序资源完整！"
+    exit 1
+fi
+
+if [ ! -d "$ASL_TOOLKIT/deploy" ]; then
+    echo "找不到deploy文件夹，请确保本程序资源完整！"
+    exit 1
+fi
 
 if [ "$#" -gt "0" ]; then
     DIRECTION="$1"
@@ -289,24 +268,28 @@ fi
 
 case "$DIRECTION" in
 -i | --install)
-    if [ "$3" = "--loacl" ]; then
+    if [ "$3" = "--local" ]; then
         INSTALL_LINUX_LOCAL="true"
     fi
     INSTALL_LINUX "$1" "$2"
     ;;
 -c | --command)
-    ROOTFS="$HOME/$2"
+    ROOTFS="$ASL_HOME/$2"
     EXEC_ROOTFS "$1"
     ;;
 -l | --login)
-    ROOTFS="$HOME/$2"
+    ROOTFS="$ASL_HOME/$1"
     EXEC_ROOTFS "bash --login"
     ;;
 -d | --delete)
-    ROOTFS="$HOME/$2"
-    UMOUNT_PARTITIONS
-    ASL_PRINT "正在删除${2}..."
+    ROOTFS="$ASL_HOME/$1"
+    if [ "$ASL_MODE" = "unshare" ]; then
+        UMOUNT_PARTITIONS
+    fi
+    ASL_PRINT "正在删除${1}..."
+    chmod -R 777 $ROOTFS
     rm -rf "$ROOTFS"
+    ASL_PRINT "删除完成！"
     ;;
 -h | --help)
     USAGE
