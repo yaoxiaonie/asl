@@ -160,6 +160,11 @@ function MOUNT_PARTITIONS() {
         for TARGET_DIR in $ROOTFS_PARTITIONS; do
             if ! MOUNT_STATUS "$ROOTFS${TARGET_DIR}"; then
                 case ${TARGET_DIR} in
+                /)
+                    mount --rbind ${ROOTFS} ${ROOTFS}/     #我 挂 我 自 己 ∑(O_O；)
+                    mount -o remount,exec,suid,dev "${ROOTFS}"
+                    ASL_PRINT "挂载 ${TARGET_DIR} 完成！"
+                    ;;
                 /dev)
                     mount -o bind /dev "$ROOTFS/dev"
                     ASL_PRINT "挂载 ${TARGET_DIR} 完成！"
@@ -184,6 +189,10 @@ function MOUNT_PARTITIONS() {
         for TARGET_DIR in $ROOTFS_PARTITIONS; do
             if ! MOUNT_STATUS "$ROOTFS${TARGET_DIR}"; then
                 case ${TARGET_DIR} in
+                /)
+                    mount --rbind ${ROOTFS} ${ROOTFS}/     #我 挂 我 自 己 ∑(O_O；)
+                    mount -o remount,exec,suid,dev "${ROOTFS}"
+                    ;;
                 /dev)
                     mount -o bind /dev "$ROOTFS/dev"
                     ;;
@@ -244,7 +253,7 @@ function USAGE() {
 
 # 挂载分区设置
 MISSING_PARTITIONS="/dev /dev/pts /dev/net /sys /sys/virtual/socket /proc"
-ROOTFS_PARTITIONS="/dev /dev/pts /proc"
+ROOTFS_PARTITIONS="/ /dev /dev/pts /proc"
 
 ASL_PROJECT=$(cd `dirname $0`;cd ..;pwd)
 if [ -f "$ASL_PROJECT/bin/asl.conf" ]; then
