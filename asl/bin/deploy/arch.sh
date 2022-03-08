@@ -55,6 +55,42 @@ sed -i -E 's/#?Port .*/Port 4022/g' "/etc/ssh/sshd_config"
 sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "/etc/ssh/sshd_config"
 sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "/etc/ssh/sshd_config"
 sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "/etc/ssh/sshd_config"
+if [ $(ls "/etc/ssh/" | grep -c key) -eq 0 ]; then
+    ssh-keygen -A >/dev/null
+fi
+cat >/etc/init.d/ssh<< sshEnd
+#!/bin/bash
+
+# Copyright (C) 2021 RvvcIm <i@rvvc.im>
+
+ssh_start()
+{
+    [ ! -f "/run/sshd.pid" ] || pkill sshd >/dev/null 
+    /usr/sbin/sshd
+}
+
+ssh_stop()
+{
+    pkill sshd
+}
+
+if [ ! "\$#" = 0 ]; then
+    INCMD="\$1"; shift
+fi
+
+case \${INCMD} in
+    start)
+        ssh_start
+    ;;
+    stop)
+        ssh_stop
+    ;;
+    *) printf "error\\n";;
+esac
+
+sshEnd
+chmod +x /etc/init.d/ssh
+
 # 设置用户
 echo "正在设置root用户（默认密码：root）..."
 echo "root:root" | chpasswd
