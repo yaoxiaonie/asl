@@ -1,0 +1,10 @@
+#!/system/bin/sh
+
+# Copyright (C) 2021 MistyRain <1740621736@qq.com>
+
+if [ "$(id -u)" != 0 ]; then
+    echo "正在获取root权限"
+    exec su -c sh "$0" "$@"
+else
+    /data/asl/bin/asl.sh "$@"
+fi

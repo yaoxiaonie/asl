@@ -1,6 +1,6 @@
 id=asl
-name=Android subsystem for Linux
-version=20220208
-versionCode=1
+name=Android Subsystem for Linux
+version=20231226
+versionCode=4
 author=yaoxiaonie
-description=利用Magisk来实现开机自动部署子系统，打开ssh通道为目的。（默认端口4022，root用户密码为root）
+description=利用KernelSU/Magisk来实现开机自动启动指定容器并打开ssh通道，同时也是一款强大的容器工具（ssh默认端口4022，root用户密码为root）
